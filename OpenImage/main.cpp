@@ -8,6 +8,7 @@
 #include <opencv2/core/utility.hpp>
 #include "opencv2/imgcodecs.hpp"
 #include <opencv2/core/base.hpp>
+#include <opencv2/features2d.hpp>
 #include <iostream>
 
 
@@ -15,7 +16,30 @@ using namespace cv;
 using namespace std;
 
 //-----------------------------------------------------functions
+compute_match(vector<Mat> Descriptors, vector<vector<DMatch>>& Matches)
+{
 
+	vector<DMatch> tmp_matches;
+
+	// 4 should be the norm-type ENUM that correspond to NORM_HAMMING --- we use also cross-match
+	Ptr<BFMatcher> matcher = BFMatcher::create(4, true);
+
+	for (int i = 0; i < Descriptors.size() - 1; i++)
+	{
+		//cout << "Size of " << i << "-th descriptor: " << Descriptors[i].size() << endl;
+
+		matcher->match(Descriptors[i], Descriptors[i + 1], tmp_matches, Mat());
+
+		Matches.push_back(tmp_matches);
+		cout << "Match between " << i + 1 << "-" << i + 2 << " computed." << endl;
+	}
+
+	// Add last-first match
+	matcher->match(Descriptors.back(), Descriptors[0], tmp_matches, Mat());
+	Matches.push_back(tmp_matches);
+	cout << "Match between last-first computed." << endl;
+	return;
+}
 //-----------------------------------------------------variables
 
 
@@ -27,7 +51,6 @@ using namespace std;
 int main(int argc, char* argv[]) {
 
 	/* create a vector of images to find and track and a vector for the video frames*/
-
 	std::vector<cv::Mat> src;
 	std::vector<cv::Mat> frames;
 
@@ -50,8 +73,8 @@ int main(int argc, char* argv[]) {
 	destroyWindow("source images");
 	
 
-	/* upload video fraames */
-	cout << "framse uploading" << std::endl;
+	/* upload video frames */
+	cout << "frames uploading..." << std::endl;
 	cv::VideoCapture cap("video.mov");
 		if (cap.isOpened()) {
 			for (;;) {
@@ -62,7 +85,33 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	cout <<"number frames found: "<< frames.size() << std::endl;
+
+	/* get the first frame to locate features */
+	Mat mainFrame = frames[0];
+	imshow("main frame", mainFrame);
+
+	Mat input = src[0];
+	cout << "feature detection: " <<  std::endl;
+
+	cv::Ptr<cv::SiftFeatureDetector> detector = cv::SiftFeatureDetector::create();
+
+	std::vector<cv::KeyPoint> keypoints;
+
+	detector->detect(input, keypoints);
+
+
+	cv::Mat output;
+	cv::drawKeypoints(input, keypoints, output);
+	cv::imshow("sift_result.jpg", output);
+
+
+	Mat descriptors;
+
+
+	cout << "END" <<  std::endl;
 	
+	
+
 	waitKey(0);
 	return 0;
 }
