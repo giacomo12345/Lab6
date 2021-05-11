@@ -16,7 +16,7 @@ using namespace cv;
 using namespace std;
 
 //-----------------------------------------------------functions
-compute_match(vector<Mat> Descriptors, vector<vector<DMatch>>& Matches)
+void compute_match(vector<Mat> Descriptors, vector<vector<DMatch>>& Matches)
 {
 
 	vector<DMatch> tmp_matches;
@@ -99,14 +99,16 @@ int main(int argc, char* argv[]) {
 
 	detector->detect(input, keypoints);
 
-
 	cv::Mat output;
 	cv::drawKeypoints(input, keypoints, output);
 	cv::imshow("sift_result.jpg", output);
 
-
 	Mat descriptors;
 
+	cv::Ptr<cv::SiftDescriptorExtractor> extractor = cv::SiftDescriptorExtractor::create();
+
+	extractor->detectAndCompute (input, Mat(), keypoints, descriptors);
+	imshow("ff", descriptors);
 
 	cout << "END" <<  std::endl;
 	
