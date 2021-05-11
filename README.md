@@ -1,2 +1,2 @@
 # Lab6
-ada
+Object recognition and tracking
