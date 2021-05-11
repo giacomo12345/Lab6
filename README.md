@@ -1,2 +1,2 @@
-# Lab5
+# Lab6
 ada
