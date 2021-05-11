@@ -26,31 +26,42 @@ using namespace std;
 //------------------------------------------------------------------------------------
 int main(int argc, char* argv[]) {
 
-	/* upload images to track */
-	if (argc < 2) {
-		std::cout << "Error - an image is needed" << std::endl;
+	/* create a vector of images to find and track and a vector for the video frames*/
+
+	std::vector<cv::Mat> src;
+	std::vector<cv::Mat> frames;
+
+	/* upload images to track */  
+	// ADJUST THIS CHECK....WE CAN HAVE 1..2...3..4..5.. IMAGES...
+	// FIND A WAY TO KNOW HOW MANY IMAGES ARE PASSED THRUOGHT THE COMMAND LINE
+	// AND USE THIS NUMBER AS SUPERIOR LIMIT TO THE FOR CYCLE BELOW
+	if (argc < 5 ) {
+		std::cout << "Error - 4 images needed" << std::endl;
 		return 0;
 	}
 
-	Mat img = imread(argv[1], IMREAD_COLOR);
-	resize(img, img, Size(img.cols / 2, img.rows / 2));
-	imshow("test window", img);
+	for (int i = 1; i < 5; i++) {
+		Mat img = imread(argv[i], IMREAD_COLOR);
+		src.push_back(img);
+		resize(img, img, Size(img.cols / 2, img.rows / 2));
+		imshow("source images", img);
+		waitKey(500);
+	}
+	destroyWindow("source images");
 	
-	waitKey(1000);
 
-	std::vector<cv::Mat> src;
+	/* upload video fraames */
+	cout << "framse uploading" << std::endl;
 	cv::VideoCapture cap("video.mov");
-		if (cap.isOpened()) // check if we succeeded
-		{
-			for (;;)
-			{
+		if (cap.isOpened()) {
+			for (;;) {
 				cv::Mat frame;
 				cap >> frame;
-				src.push_back(frame);
-				
+				frames.push_back(frame);
+				if (!cap.read(frame)) break;
 			}
 		}
-	cout << src.size() << std::endl;
+	cout <<"number frames found: "<< frames.size() << std::endl;
 	
 	waitKey(0);
 	return 0;
