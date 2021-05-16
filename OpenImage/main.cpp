@@ -15,9 +15,12 @@
 using namespace cv;
 using namespace std;
 
+
+
 //-----------------------------------------------------functions
+/*
 void compute_match(vector<Mat> Descriptors, vector<vector<DMatch>>& Matches)
-{
+   {
 
 	vector<DMatch> tmp_matches;
 
@@ -40,6 +43,7 @@ void compute_match(vector<Mat> Descriptors, vector<vector<DMatch>>& Matches)
 	cout << "Match between last-first computed." << endl;
 	return;
 }
+*/
 //-----------------------------------------------------variables
 
 
@@ -54,11 +58,11 @@ int main(int argc, char* argv[]) {
 	std::vector<cv::Mat> src;
 	std::vector<cv::Mat> frames;
 
-	/* upload images to track */  
+	/* upload images to track */
 	// ADJUST THIS CHECK....WE CAN HAVE 1..2...3..4..5.. IMAGES...
 	// FIND A WAY TO KNOW HOW MANY IMAGES ARE PASSED THRUOGHT THE COMMAND LINE
 	// AND USE THIS NUMBER AS SUPERIOR LIMIT TO THE FOR CYCLE BELOW
-	if (argc < 5 ) {
+	if (argc < 5) {
 		std::cout << "Error - 4 images needed" << std::endl;
 		return 0;
 	}
@@ -71,49 +75,91 @@ int main(int argc, char* argv[]) {
 		waitKey(500);
 	}
 	destroyWindow("source images");
+
+
 	
 
 	/* upload video frames */
 	cout << "frames uploading..." << std::endl;
-	cv::VideoCapture cap("video.mov");
-		if (cap.isOpened()) {
-			for (;;) {
-				cv::Mat frame;
-				cap >> frame;
-				frames.push_back(frame);
-				if (!cap.read(frame)) break;
-			}
-		}
-	cout <<"number frames found: "<< frames.size() << std::endl;
+	cv::VideoCapture cap("C:/workspace/Lab6/video.mov");
+	if (cap.isOpened())
+	{
+		for (;;) {
 
+
+			cv::Mat frame;
+			cap >> frame;
+
+			if (!cap.read(frame)) break;
+			frames.push_back(frame);
+
+			/*namedWindow("video", WINDOW_FREERATIO);
+			imshow("video", frame);
+			*/
+			waitKey(1);
+			
+
+		}
+	}
+	else std::cout << "error 404 video not found" << std::endl;
+	cap.release();
+	//destroyWindow("video");
+
+	cout << "number frames found: " << frames.size() << std::endl;
+	
 	/* get the first frame to locate features */
 	Mat mainFrame = frames[0];
+	Mat tmp = mainFrame;
+	src.push_back(tmp);
+	namedWindow("main frame", WINDOW_FREERATIO);
 	imshow("main frame", mainFrame);
+	cout << "feature detection: " << std::endl;
 
-	Mat input = src[0];
-	cout << "feature detection: " <<  std::endl;
-
+	//create the objects detector and extractor for SIFT 
 	cv::Ptr<cv::SiftFeatureDetector> detector = cv::SiftFeatureDetector::create();
-
-	std::vector<cv::KeyPoint> keypoints;
-
-	detector->detect(input, keypoints);
-
-	cv::Mat output;
-	cv::drawKeypoints(input, keypoints, output);
-	cv::imshow("sift_result.jpg", output);
-
-	Mat descriptors;
-
 	cv::Ptr<cv::SiftDescriptorExtractor> extractor = cv::SiftDescriptorExtractor::create();
-
-	extractor->detectAndCompute (input, Mat(), keypoints, descriptors);
-	imshow("ff", descriptors);
-
-	cout << "END" <<  std::endl;
 	
+	//variables to store the results of SIFT processing
+	std::vector<cv::KeyPoint> keypoints;
+	std::vector<cv::Mat> descriptors;
+	
+	//String indice;              ho tenuto queste due righe perche' non so se e' piu' corretto tenerle fuori dal ciclo for per inizializzarle una sola volta o tenerle(a capo)
+	//Mat tmpdescriptors;		  dentro il ciclo for perche' in realta' sarebbero variabili del ciclo e quindi e' meglio tenerle dentro anche se le inizializza ad ogni iterazione.
+	
+	//ciclo for per determinare keypoints e relativi descriptors dei quattro libri presi singolarmente e quando sono tutti insieme nel mainFrame
+	for (int i = 0; i <5; i++)
+	{
+		String indice;
+		indice = to_string(i);
+		
+		Mat input= src[i];
+		detector->detect(input, keypoints);
+
+		cv::Mat output;
+		cv::drawKeypoints(input, keypoints, output);
+		cv::imshow("image" + indice, output);
+		waitKey(500);
+		
+		
+		Mat tmpdescriptors;
+		extractor->detectAndCompute(input, Mat(), keypoints, tmpdescriptors);
+		descriptors.push_back(tmpdescriptors);
+		imshow("ff" + indice, descriptors[i]);
+		
+		//stavo/sto  cercando di usare BFMatcher come l'esempio a questo sito:https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
+		/*Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+		std::vector< std::vector<DMatch> > knn_matches;
+		matcher->knnMatch(descriptors, knn_matches, 2);
+		*/
+
+	}
 	
 
+	
+	cout << "END" << std::endl;
+
+
+	
 	waitKey(0);
 	return 0;
 }
