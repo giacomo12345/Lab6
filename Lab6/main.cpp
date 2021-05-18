@@ -72,16 +72,17 @@ int main(int argc, char* argv[]) {
 		src.push_back(img);
 		resize(img, img, Size(img.cols / 2, img.rows / 2));
 		imshow("source images", img);
-		waitKey(500);
+		waitKey(100);
 	}
 	destroyWindow("source images");
 
 
-	
+
 
 	/* upload video frames */
-	cout << "frames uploading..." << std::endl;
-	cv::VideoCapture cap("C:/workspace/Lab6/video.mov");
+	int count = 0;
+	cout << "frames uploading";
+	cv::VideoCapture cap("video.mov");
 	if (cap.isOpened())
 	{
 		for (;;) {
@@ -89,15 +90,16 @@ int main(int argc, char* argv[]) {
 
 			cv::Mat frame;
 			cap >> frame;
-
+			//if (count == 2) break;
 			if (!cap.read(frame)) break;
 			frames.push_back(frame);
+			if(count % 100 ==0) std::cout << ".";
 
 			/*namedWindow("video", WINDOW_FREERATIO);
 			imshow("video", frame);
 			*/
 			waitKey(1);
-			
+			count++;
 
 		}
 	}
@@ -106,7 +108,7 @@ int main(int argc, char* argv[]) {
 	//destroyWindow("video");
 
 	cout << "number frames found: " << frames.size() << std::endl;
-	
+
 	/* get the first frame to locate features */
 	Mat mainFrame = frames[0];
 	Mat tmp = mainFrame;
@@ -118,48 +120,90 @@ int main(int argc, char* argv[]) {
 	//create the objects detector and extractor for SIFT 
 	cv::Ptr<cv::SiftFeatureDetector> detector = cv::SiftFeatureDetector::create();
 	cv::Ptr<cv::SiftDescriptorExtractor> extractor = cv::SiftDescriptorExtractor::create();
-	
+
 	//variables to store the results of SIFT processing
-	std::vector<cv::KeyPoint> keypoints;
+	std::vector < std::vector<cv::KeyPoint> > keypoints;
 	std::vector<cv::Mat> descriptors;
-	
+
 	//String indice;              ho tenuto queste due righe perche' non so se e' piu' corretto tenerle fuori dal ciclo for per inizializzarle una sola volta o tenerle(a capo)
 	//Mat tmpdescriptors;		  dentro il ciclo for perche' in realta' sarebbero variabili del ciclo e quindi e' meglio tenerle dentro anche se le inizializza ad ogni iterazione.
-	
+
 	//ciclo for per determinare keypoints e relativi descriptors dei quattro libri presi singolarmente e quando sono tutti insieme nel mainFrame
-	for (int i = 0; i <5; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		String indice;
 		indice = to_string(i);
-		
-		Mat input= src[i];
-		detector->detect(input, keypoints);
+
+		Mat input = src[i];
+		std::vector<cv::KeyPoint> keypoints_tmp;
+		detector->detect(input, keypoints_tmp);
+		keypoints.push_back(keypoints_tmp);
 
 		cv::Mat output;
-		cv::drawKeypoints(input, keypoints, output);
+		cv::drawKeypoints(input, keypoints[i], output);
 		cv::imshow("image" + indice, output);
 		waitKey(500);
-		
-		
+
+
 		Mat tmpdescriptors;
-		extractor->detectAndCompute(input, Mat(), keypoints, tmpdescriptors);
+		extractor->detectAndCompute(input, Mat(), keypoints[i], tmpdescriptors);
 		descriptors.push_back(tmpdescriptors);
 		imshow("ff" + indice, descriptors[i]);
-		
+
 		//stavo/sto  cercando di usare BFMatcher come l'esempio a questo sito:https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
+
 		/*Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
 		std::vector< std::vector<DMatch> > knn_matches;
 		matcher->knnMatch(descriptors, knn_matches, 2);
 		*/
 
+		
 	}
-	
 
-	
+	/* COPIATO DA ANIELLO */
+	vector<DMatch> tmp_matches;
+	vector<vector<DMatch>> match;
+
+
+	// 4 should be the norm-type ENUM that correspond to NORM_HAMMING --- we use also cross-match
+	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, true);
+
+	for (int i = 0; i < descriptors.size() - 1; i++)
+	{
+		//cout << "Size of " << i << "-th descriptor: " << Descriptors[i].size() << endl;
+
+		matcher->match(descriptors[i], descriptors[4], tmp_matches, Mat());
+
+		match.push_back(tmp_matches);
+		cout << "Match between " << i + 1 << "-" << i + 2 << " computed." << endl;
+	}
+
+
+
+
+	/* COPIATO DA SITO DI GIACOMO */
+
+	const float ratio_thresh = 0.7f;
+	std::vector<DMatch> good_matches;
+	for (size_t i = 0; i < match.size(); i++)
+	{
+		if (match[i][0].distance < ratio_thresh * match[i][1].distance)
+		{
+			good_matches.push_back(match[i][0]);
+		}
+	}
+
+	Mat img_matches;
+	drawMatches(src[0], keypoints[0], src[4], keypoints[4], match[0], img_matches, Scalar::all(-1),
+		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	namedWindow("ciao", WINDOW_AUTOSIZE);
+	resize(img_matches, img_matches, Size(img_matches.cols / 2, img_matches.rows / 2));
+	imshow("ciao", img_matches);
+
 	cout << "END" << std::endl;
 
 
-	
+
 	waitKey(0);
 	return 0;
 }
@@ -167,5 +211,4 @@ int main(int argc, char* argv[]) {
 //------------------------------------------------------------------------------------
 //                                FUNCTIONS
 //------------------------------------------------------------------------------------
-
 
