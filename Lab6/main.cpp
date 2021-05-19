@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 			if (count == 2) break;
 			if (!cap.read(frame)) break;
 			frames.push_back(frame);
-			if(count % 100 ==0) std::cout << ".";
+			if (count % 100 == 0) std::cout << ".";
 
 			/*namedWindow("video", WINDOW_FREERATIO);
 			imshow("video", frame);
@@ -147,8 +147,7 @@ int main(int argc, char* argv[]) {
 	//ciclo for per determinare keypoints e relativi descriptors dei quattro libri presi singolarmente e quando sono tutti insieme nel mainFrame
 	for (int i = 0; i < 5; i++)
 	{
-		String indice;
-		indice = to_string(i);
+		String indice= to_string(i);
 
 		Mat input = src[i];
 		std::vector<cv::KeyPoint> keypoints_tmp;
@@ -166,19 +165,11 @@ int main(int argc, char* argv[]) {
 		descriptors.push_back(tmpdescriptors);
 		//imshow("ff" + indice, descriptors[i]);
 
-		//stavo/sto  cercando di usare BFMatcher come l'esempio a questo sito:https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
 
-		/*Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-		std::vector< std::vector<DMatch> > knn_matches;
-		matcher->knnMatch(descriptors, knn_matches, 2);
-		*/
-
-		
 	}
 
 	/* COPIATO DA ANIELLO */
-	vector<DMatch> tmp_matches;
-	vector<vector<DMatch>> match;
+	
 
 
 	// 4 should be the norm-type ENUM that correspond to NORM_HAMMING --- we use also cross-match
@@ -193,83 +184,96 @@ int main(int argc, char* argv[]) {
 		match.push_back(tmp_matches);
 	}
 	*/
+	
 
-
-	//Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-	std::vector< std::vector<DMatch> > knn_matches;
-	//matcher->knnMatch(descriptors[0], descriptors[4], knn_matches, 2);
 
 	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, true);
-	matcher->match(descriptors[0], descriptors[4], tmp_matches, Mat());
-	knn_matches.push_back(tmp_matches);
-
+	std::vector< std::vector<DMatch> > matches;
+	
+	for (int i = 0; i < 4; i++)
+	{
+		vector<DMatch> tmp_matches;
+		matcher->match(descriptors[i], descriptors[4], tmp_matches, Mat());
+		matches.push_back(tmp_matches);
+	}
 
 	std::vector<KeyPoint> keypoints_object, keypoints_scene;
 
-	keypoints_object = keypoints[0];
+	//keypoints_object = keypoints[0];
 	keypoints_scene = keypoints[4];
-	Mat img_object = src[0].clone();
+	//Mat img_object = src[0].clone();
 	Mat img_scene = src[4].clone();;
 
 
-	std::vector<DMatch> good_matches;
-	/* COPIATO DA SITO DI GIACOMO */
-
-	/*
-	//-- Filter matches using the Lowe's ratio test
-	const float ratio_thresh = 0.75f;
-	
-	for (size_t i = 0; i < knn_matches.size(); i++)
+	std::vector<std::vector<DMatch>> good_matches;
+	for (int i = 0; i < matches.size(); i++)
 	{
-		if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
+		String indice = to_string(i);
+		float ratio = 1.5;
+		float instance_ratio = ratio;
+		
+		std::vector<DMatch> tmp_good_matches;
+		// push in bestMatches the top 50 matched features
+		int nbMatch = int(matches[i].size());
+		Mat tab(nbMatch, 1, CV_32F);
+
+		float dist;
+		float min_dist = -1.;
+
+		// Find the minumun distance between matchpoints
+		for (int j = 0; j < nbMatch; j++)
 		{
-			good_matches.push_back(knn_matches[i][0]);
+			dist = matches[i][j].distance;
+
+			// update the minumun distance
+			if (min_dist < 0 || dist < min_dist)
+				min_dist = dist;
 		}
-	}*/
-	float ratio = 1.5;
 
-	float instance_ratio = ratio;
 
-	// push in bestMatches the top 50 matched features
-	vector<DMatch> bestMatches;
-	int nbMatch = int(knn_matches[0].size());
-	Mat tab(nbMatch, 1, CV_32F);
+		// Adapt the ratio in order to get at least 120 matches per couple of adjacent images
+		do
+		{
+			tmp_good_matches = autotune_matches(matches[i], min_dist, instance_ratio);
+			instance_ratio = 2 * instance_ratio;
+		} while (tmp_good_matches.size() < 120);
 
-	float dist;
-	float min_dist = -1.;
+		good_matches.push_back(tmp_good_matches);
 
-	// Find the minumun distance between matchpoints
-	for (int j = 0; j < nbMatch; j++)
-	{
-		dist = knn_matches[0][j].distance;
+		//cout << "Size of " << i << "-th" << "TOP matches: " << BestMatches[i].size() << endl;
 
-		// update the minumun distance
-		if (min_dist < 0 || dist < min_dist)
-			min_dist = dist;
+
+
+
+		//-- Draw matches
+		std::vector<cv::Mat> img_matches;
+		drawMatches(src[i], keypoints[i], img_scene, keypoints_scene, good_matches[i], img_matches[i], colors[i],
+			Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+		
+		namedWindow("Good Matches", WINDOW_AUTOSIZE);
+		resize(img_matches[i], img_matches[i], Size(img_matches[i].cols / 2, img_matches[i].rows / 2));
+		imshow("Good Matches" + indice, img_matches[i]);
+	
 	}
 
 
-	// Adapt the ratio in order to get at least 120 matches per couple of adjacent images
-	do
-	{
-		good_matches = autotune_matches(knn_matches[0], min_dist, instance_ratio);
-		instance_ratio = 2 * instance_ratio;
-	} while (good_matches.size() < 120);
-
-
-
-	//cout << "Size of " << i << "-th" << "TOP matches: " << BestMatches[i].size() << endl;
 
 
 
 
-	//-- Draw matches
-	Mat img_matches;
-	drawMatches(img_object, keypoints_object, img_scene, keypoints_scene, good_matches, img_matches, colors[0],
-		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+
+
+
+
+
+
+
+
+
 
 	//-- Localize the object
-	std::vector<Point2f> obj;
+	/*std::vector<Point2f> obj;
 	std::vector<Point2f> scene;
 	for (size_t i = 0; i < good_matches.size(); i++)
 	{
@@ -279,7 +283,7 @@ int main(int argc, char* argv[]) {
 	}
 	cout << "good_matches size:     " << good_matches.size() << std::endl;
 	cout << "keypoints_object size:     " << keypoints_object.size() << std::endl;
-	cout << "obj size:     "<< obj.size()<<std::endl;
+	cout << "obj size:     " << obj.size() << std::endl;
 	Mat H = findHomography(obj, scene, RANSAC);
 	//-- Get the corners from the image_1 ( the object to be "detected" )
 	std::vector<Point2f> obj_corners(4);
@@ -302,10 +306,10 @@ int main(int argc, char* argv[]) {
 	namedWindow("Good Matches & Object detection", WINDOW_AUTOSIZE);
 	resize(img_matches, img_matches, Size(img_matches.cols / 2, img_matches.rows / 2));
 	imshow("Good Matches & Object detection", img_matches);
-
+	*/
 
 	cout << "END" << std::endl;
-
+	
 
 
 	waitKey(0);
