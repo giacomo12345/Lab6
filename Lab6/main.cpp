@@ -27,10 +27,10 @@ int main(int argc, char* argv[]) {	// risolvere il problema di poter avere piu o
 	/* initializing vectors*/
 	std::vector<cv::Mat> frames;
 	std::vector<myObject> objects;
-	std::vector < std::vector<cv::KeyPoint> > keypoints;	// poi non servir‡
-	std::vector<cv::Mat> descriptors;						// poi non servir‡
+	std::vector < std::vector<cv::KeyPoint> > keypoints;	// poi non servir√†
+	std::vector<cv::Mat> descriptors;						// poi non servir√†
 	
-	/* upload video frames */
+	/* upload video frames */---------------------------------------------------------------------------------*/
 	cout << "frames uploading";
 	cv::VideoCapture cap("video.mov");
 	if (cap.isOpened()) {
@@ -49,24 +49,30 @@ int main(int argc, char* argv[]) {	// risolvere il problema di poter avere piu o
 	else std::cout << "error 404 video not found" << std::endl;
 	cout << "number frames found: " << frames.size() << std::endl;
 	cap.release();  //destroyWindow("video");
+	/*--------------------------------------------------------------------------------------------------------*/
+	
+	
 	
 	/* create myObject with the first frame of the video*/
 	myObject scene(frames[0]);
 	
-	/* upload images */
+	
+	/* upload images and create the vector of objects */
 	for (int i = 1; i < 5; i++) {
 		Mat img = imread(argv[i], IMREAD_COLOR);
 		myObject obj(img);
 		objects.push_back(obj);
+		
 		String index = to_string(i);
-		keypoints.push_back(obj.getKeypoints());					// poi non servir‡
-		descriptors.push_back(obj.getDescriptors());				// poi non servir‡
+		keypoints.push_back(obj.getKeypoints());				// poi non servir√†
+		descriptors.push_back(obj.getDescriptors());				// poi non servir√†
 		if (SHOW_FEATURES) obj.showKeypoints("index" + index);
 	}
 
+	
 	/*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-	/* PER FAR FUNZIONARE IL RESTO SENZA LA CLASSE PER FARE IL MATCH CHE Ë DA FARE */
+	/* PER FAR FUNZIONARE IL RESTO SENZA LA CLASSE PER FARE IL MATCH CHE √® DA FARE */
 	std::vector<cv::Mat> src;
 	for (int i = 0; i < 4; i++) src.push_back(objects[i].image);
 	src.push_back(frames[0]);
