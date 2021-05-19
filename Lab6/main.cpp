@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 	//ciclo for per determinare keypoints e relativi descriptors dei quattro libri presi singolarmente e quando sono tutti insieme nel mainFrame
 	for (int i = 0; i < 5; i++)
 	{
-		String indice= to_string(i);
+		String indice = to_string(i);
 
 		Mat input = src[i];
 		std::vector<cv::KeyPoint> keypoints_tmp;
@@ -168,25 +168,8 @@ int main(int argc, char* argv[]) {
 
 	}
 
-	/* COPIATO DA ANIELLO */
+
 	
-
-
-	// 4 should be the norm-type ENUM that correspond to NORM_HAMMING --- we use also cross-match
-	/*	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, false);
-
-	for (int i = 0; i < descriptors.size() - 1; i++)
-	{
-		//cout << "Size of " << i << "-th descriptor: " << Descriptors[i].size() << endl;
-
-		matcher->match(descriptors[i], descriptors[4], tmp_matches, Mat());
-
-		match.push_back(tmp_matches);
-	}
-	*/
-	
-
-
 	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, true);
 	std::vector< std::vector<DMatch> > matches;
 	
@@ -196,15 +179,15 @@ int main(int argc, char* argv[]) {
 		matcher->match(descriptors[i], descriptors[4], tmp_matches, Mat());
 		matches.push_back(tmp_matches);
 	}
-
+	
 	std::vector<KeyPoint> keypoints_object, keypoints_scene;
 
 	//keypoints_object = keypoints[0];
 	keypoints_scene = keypoints[4];
 	//Mat img_object = src[0].clone();
 	Mat img_scene = src[4].clone();;
-
-
+	std::vector<cv::Mat> img_matches;
+	
 	std::vector<std::vector<DMatch>> good_matches;
 	for (int i = 0; i < matches.size(); i++)
 	{
@@ -229,7 +212,7 @@ int main(int argc, char* argv[]) {
 			if (min_dist < 0 || dist < min_dist)
 				min_dist = dist;
 		}
-
+		
 
 		// Adapt the ratio in order to get at least 120 matches per couple of adjacent images
 		do
@@ -239,21 +222,25 @@ int main(int argc, char* argv[]) {
 		} while (tmp_good_matches.size() < 120);
 
 		good_matches.push_back(tmp_good_matches);
-
+		
 		//cout << "Size of " << i << "-th" << "TOP matches: " << BestMatches[i].size() << endl;
 
 
 
 
 		//-- Draw matches
-		std::vector<cv::Mat> img_matches;
-		drawMatches(src[i], keypoints[i], img_scene, keypoints_scene, good_matches[i], img_matches[i], colors[i],
-			Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-		
-		namedWindow("Good Matches", WINDOW_AUTOSIZE);
-		resize(img_matches[i], img_matches[i], Size(img_matches[i].cols / 2, img_matches[i].rows / 2));
-		imshow("Good Matches" + indice, img_matches[i]);
+		cv::Mat tmp_img_matches;
 	
+		
+		drawMatches(src[i], keypoints[i], img_scene, keypoints_scene, good_matches[i], tmp_img_matches, colors[i],
+			Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+		img_matches.push_back(tmp_img_matches);
+		
+		namedWindow("Good Matches" + indice, WINDOW_AUTOSIZE);
+		resize(img_matches[i], img_matches[i], Size(img_matches[i].cols / 2, img_matches[i].rows / 2));
+		
+		imshow("Good Matches" + indice, img_matches[i]);
+
 	}
 
 
@@ -309,7 +296,7 @@ int main(int argc, char* argv[]) {
 	*/
 
 	cout << "END" << std::endl;
-	
+
 
 
 	waitKey(0);
