@@ -1,6 +1,6 @@
+/* COMPUTER VISION - LAB 6 - AMBROSIN GIOELE - MULTINEDDU GIACOMO */
+
 #include "object_recognition.h"
-
-
 
 ////////////////////////////////////////////////////////////////////////
 //							 myObject
@@ -22,12 +22,6 @@ void myObject::showImage(){
 	imshow("object image", image);
 }
 
-/* compute keypoints and descriptors 
-void myObject::computeKeypointsAndDescriptors() {
-	detector->detect(image, keypoints);
-	extractor->detectAndCompute(image, Mat(), keypoints,descriptors);
-}
-*/
 /* compute keypoints and descriptors */
 void myObject::showKeypoints(String windowName) {
 	Mat output;
@@ -57,7 +51,7 @@ myMatcher::myMatcher(std::vector<myObject> objects, myObject first_frame) {
 }
 
 /* compute the match between objects and scene image */
-void myMatcher::computeScene() {
+void myMatcher::computeMatches() {
 
 	for (int i = 0; i < obj.size(); i++) {
 		vector<DMatch> tmp_matches;
