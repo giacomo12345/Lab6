@@ -20,12 +20,12 @@ vector<DMatch> autotune_matches(vector<DMatch> Matches, float min_dist, float ra
 //                               MAIN FUNCTION
 //------------------------------------------------------------------------------------
 
-int main(int argc, char* argv[]) {	
+int main(int argc, char* argv[]) {
 
-	/* upload video frames and create myObject with the first frame of the video */ 
+	/* upload video frames and create myObject with the first frame of the video */
 	std::vector<cv::Mat> frames = loadVideo("video.mov", LOAD_VIDEO);
 	myObject scene(frames[0]);
-	
+
 	/* upload images and create the vector of objects to be recognized inside the scene */
 	std::vector<myObject> objects;
 	for (int i = 1; i < 5; i++) {
@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
 		good_matches.push_back(temp_good_matches);
 	}
 
-	
+
 	/* vettore di image matches - disegna le righe dei 4 oggetti rispetto alla scena*/
 	std::vector<cv::Mat> img_matches;
 	for (int i = 0; i < objects.size(); i++) {
@@ -95,31 +95,39 @@ int main(int argc, char* argv[]) {
 	std::vector<std::vector<Point2f>> obj_corners;
 	std::vector<std::vector<Point2f>> scene_corners;
 	std::vector<Mat> H;
-
 	std::vector< std::vector<float>> coord;// X min & max , Y min & max
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < objects.size(); i++)
 	{
-		for (int j = 0; j < 4; j++)
-			coord[i].push_back(0.0f);
-		coord[i][0] = objects[i].getKeypoints()[0].pt.x;
-		coord[i][2] = objects[i].getKeypoints()[0].pt.y;
+		std::vector<float > temp_coord;
+		//for (int j = 0; j < 4; j++)
+		//coord[i].push_back(0.0f);
+		temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
+		temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
+		temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
+		temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
+		//coord[i][0] = objects[i].getKeypoints()[0].pt.x;
+		//coord[i][2] = objects[i].getKeypoints()[0].pt.y;
+		coord.push_back(temp_coord);
 	}
-	for (int i = 0; i < objects[i].getKeypoints().size(); i++)
+	for (int j = 0; j < objects.size(); j++)
 	{
+		for (int i = 0; i < objects[j].getKeypoints().size(); i++)
+		{
 
-		float x = objects[i].getKeypoints()[i].pt.x;
-		float y = objects[i].getKeypoints()[i].pt.y;
+			float x = objects[j].getKeypoints()[i].pt.x;
+			float y = objects[j].getKeypoints()[i].pt.y;
 
-		if (x < coord[i][0]) coord[i][0] = x;
-		else if (x > coord[i][1]) coord[i][1] = x;
-		if (y < coord[i][2]) coord[i][2] = y;
-		else if (y > coord[i][3]) coord[i][3] = y;
+			if (x < coord[j][0]) coord[j][0] = x;
+			else if (x > coord[j][1]) coord[j][1] = x;
 
-		cout << "keypoints x coordinate:     " << x << std::endl;
-		cout << "keypoints y coordinate:     " << y << std::endl;
+			if (y < coord[j][2]) coord[j][2] = y;
+			else if (y > coord[j][3]) coord[j][3] = y;
+
+			//cout << "keypoints x coordinate:     " << x << std::endl;
+			//cout << "keypoints y coordinate:     " << y << std::endl;
+		}
 	}
-
 	/* localize object - compute homography - get the corners from the object to be detected */
 	for (int i = 0; i < objects.size(); i++) {
 
@@ -153,8 +161,8 @@ int main(int argc, char* argv[]) {
 		scene_corners.push_back(temp_scene_corners);
 		H.push_back(temp_H);
 	}
-	   	  
-	
+
+
 	/* ------------------------SHOW THE RESULT---------------------------------- */
 	Mat result = scene.image.clone();
 
@@ -163,7 +171,7 @@ int main(int argc, char* argv[]) {
 		for (int j = 0; j < 3; j++) line(result, scene_corners[i][j], scene_corners[i][j + 1], objects[i].color, 4);
 		line(result, scene_corners[i][3], scene_corners[i][0], objects[i].color, 4);
 	}
-	
+
 	namedWindow("Good Matches & Object detection", WINDOW_AUTOSIZE);
 	//resize(img_matches[0], img_matches[0], Size(img_matches[0].cols / 2, img_matches[0].rows / 2));
 	imshow("Good Matches & Object detection", result);
@@ -172,7 +180,6 @@ int main(int argc, char* argv[]) {
 	waitKey(0);
 	return 0;
 }
-
 //------------------------------------------------------------------------------------
 //                                FUNCTIONS
 //------------------------------------------------------------------------------------
@@ -210,4 +217,3 @@ vector<DMatch> autotune_matches(vector<DMatch> Matches, float min_dist, float ra
 	return match;
 }
 /* ------------------------------------------------------------------------------------------*/
-
