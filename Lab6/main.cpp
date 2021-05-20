@@ -96,6 +96,30 @@ int main(int argc, char* argv[]) {
 	std::vector<std::vector<Point2f>> scene_corners;
 	std::vector<Mat> H;
 
+	std::vector< std::vector<float>> coord;// X min & max , Y min & max
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+			coord[i].push_back(0.0f);
+		coord[i][0] = objects[i].getKeypoints()[0].pt.x;
+		coord[i][2] = objects[i].getKeypoints()[0].pt.y;
+	}
+	for (int i = 0; i < objects[i].getKeypoints().size(); i++)
+	{
+
+		float x = objects[i].getKeypoints()[i].pt.x;
+		float y = objects[i].getKeypoints()[i].pt.y;
+
+		if (x < coord[i][0]) coord[i][0] = x;
+		else if (x > coord[i][1]) coord[i][1] = x;
+		if (y < coord[i][2]) coord[i][2] = y;
+		else if (y > coord[i][3]) coord[i][3] = y;
+
+		cout << "keypoints x coordinate:     " << x << std::endl;
+		cout << "keypoints y coordinate:     " << y << std::endl;
+	}
+
 	/* localize object - compute homography - get the corners from the object to be detected */
 	for (int i = 0; i < objects.size(); i++) {
 
@@ -115,10 +139,10 @@ int main(int argc, char* argv[]) {
 		Mat temp_H = findHomography(temp_obj_points, temp_scene_points, RANSAC);
 
 		/* Get the corners from the object to be detected */
-		temp_obj_corners[0] = Point2f(0, 0);
-		temp_obj_corners[1] = Point2f((float)objects[i].image.cols, 0);
-		temp_obj_corners[2] = Point2f((float)objects[i].image.cols, (float)objects[i].image.rows);
-		temp_obj_corners[3] = Point2f(0, (float)objects[i].image.rows);
+		temp_obj_corners[0] = Point2f(coord[i][0], coord[i][2]);
+		temp_obj_corners[1] = Point2f(coord[i][0], coord[i][3]);
+		temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
+		temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
 
 		perspectiveTransform(temp_obj_corners, temp_scene_corners, temp_H);
 
@@ -186,3 +210,4 @@ vector<DMatch> autotune_matches(vector<DMatch> Matches, float min_dist, float ra
 	return match;
 }
 /* ------------------------------------------------------------------------------------------*/
+
