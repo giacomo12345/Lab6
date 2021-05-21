@@ -13,7 +13,7 @@ using namespace std;
 //---------------------------------------------------------------------------functions
 
 std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading);
-
+void drawRettangles(Mat& image, std::vector<std::vector<Point2f>> corners, std::vector<myObject> obj);
 
 //------------------------------------------------------------------------------------
 //                               MAIN FUNCTION
@@ -59,102 +59,23 @@ int main(int argc, char* argv[]) {
 	/* localize the objets and compute homography */
 	objMatcher.computeHomography();
 
+	/* find the corner of the object images for draw the rettangles */
 	objMatcher.findCorners();
+
+	/* compute the projection of the object image corners to the scene image */
 	objMatcher.computeProjection();
-	////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////// CLASSI FINO A QUI /////////////////////////////////////
-	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
-	//std::vector<std::vector<DMatch>> good_matches = objMatcher.good_matches;
-
-
-	/* vectors for store the results */
-	//std::vector<std::vector<Point2f>> obj_points;
-	//std::vector<std::vector<Point2f>> scene_points;
-	//std::vector<std::vector<Point2f>> obj_corners;
+	
+	/* store the corners and the points of the scene image */
+	std::vector<std::vector<Point2f>> scene_points = objMatcher.getScenePoints();
 	std::vector<std::vector<Point2f>> scene_corners = objMatcher.getSceneCorners();
-	//std::vector<Mat> H;
-	//std::vector< std::vector<float>> coord;// X min & max , Y min & max
 
-	//for (int i = 0; i < objects.size(); i++) {
-	//	std::vector<float > temp_coord;
-	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
-	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
-	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
-	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
-	//	coord.push_back(temp_coord);
-	//}
-
-	//for (int j = 0; j < objects.size(); j++) {
-	//	for (int i = 0; i < objects[j].getKeypoints().size(); i++) {
-
-	//		float x = objects[j].getKeypoints()[i].pt.x;
-	//		float y = objects[j].getKeypoints()[i].pt.y;
-
-	//		if (x < coord[j][0]) coord[j][0] = x;
-	//		else if (x > coord[j][1]) coord[j][1] = x;
-
-	//		if (y < coord[j][2]) coord[j][2] = y;
-	//		else if (y > coord[j][3]) coord[j][3] = y;
-	//	}
-	//}
-
-	/* localize object - compute homography - get the corners from the object to be detected */
-	for (int i = 0; i < objects.size(); i++) {
-
-		///* temp elementes - will be stored in the outside vectors */
-		//std::vector<Point2f> temp_obj_points;
-		//std::vector<Point2f> temp_scene_points;
-		//std::vector<Point2f> temp_obj_corners(4);
-		//std::vector<Point2f> temp_scene_corners = objMatcher.getSceneCorners();
-
-		///* Localize the object */
-		//for (size_t j = 0; j < good_matches[i].size(); j++) {
-		//	temp_obj_points.push_back(objects[i].getKeypoints()[good_matches[i][j].queryIdx].pt);
-		//	temp_scene_points.push_back(scene.getKeypoints()[good_matches[i][j].trainIdx].pt);
-		//}
-
-
-		//
-		//
-
-		///* compute homography */
-		//Mat temp_H = findHomography(temp_obj_points, temp_scene_points, RANSAC);
-
-		///* Get the corners from the object to be detected */
-		//temp_obj_corners[0] = Point2f(coord[i][0], coord[i][2]);
-		//temp_obj_corners[1] = Point2f(coord[i][0], coord[i][3]);
-		//temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
-		//temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
-
-		//temp_obj_corners[0] = Point2f(0, 0);
-		//temp_obj_corners[1] = Point2f((float)objects[i].image.cols, 0);
-		//temp_obj_corners[2] = Point2f((float)objects[i].image.cols, (float)objects[i].image.rows);
-		//temp_obj_corners[3] = Point2f(0, (float)objects[i].image.rows);
-
-		//perspectiveTransform(objMatcher.obj_corners[i], temp_scene_corners, objMatcher.H[i]);
-
-		///* store the "temp" elements in the outside vectors */
-		//obj_points.push_back(temp_obj_corners);
-		//scene_points.push_back(temp_scene_corners);
-		//obj_corners.push_back(temp_obj_corners);
-		//scene_corners.push_back(temp_scene_corners);
-		//H.push_back(temp_H);
-	}
-
-
-	/* ------------------------SHOW THE RESULT---------------------------------- */
-	Mat result = scene.image.clone();
-
+	
 	/* Draw lines between the corners (the mapped object in the scene) */
-	for (int i = 0; i < objects.size(); i++) {
-		for (int j = 0; j < 3; j++) line(result, scene_corners[i][j], scene_corners[i][j + 1], objects[i].color, 4);
-		line(result, scene_corners[i][3], scene_corners[i][0], objects[i].color, 4);
-	}
-
-	namedWindow("Good Matches & Object detection", WINDOW_AUTOSIZE);
-	//resize(img_matches[0], img_matches[0], Size(img_matches[0].cols / 2, img_matches[0].rows / 2));
-	imshow("Good Matches & Object detection", result);
-
+	Mat detected_objects = scene.image.clone();
+	drawRettangles(detected_objects, scene_corners, objects);
+	namedWindow("Object detection", WINDOW_AUTOSIZE);
+	imshow("Object detection", detected_objects);
+	
 	cout << "END" << std::endl;
 	waitKey(0);
 	return 0;
@@ -186,4 +107,11 @@ std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading = LOAD_VIDEO)
 	cap.release();  //destroyWindow("video");
 	
 	return frames_to_load;
+}
+
+void drawRettangles(Mat& image, std::vector<std::vector<Point2f>> corners, std::vector<myObject> obj) {
+	for (int i = 0; i < obj.size(); i++) {
+		for (int j = 0; j < 3; j++) line(image, corners[i][j], corners[i][j + 1], obj[i].color, 4);
+		line(image, corners[i][3], corners[i][0] ,obj[i].color, 4);
+	}
 }
