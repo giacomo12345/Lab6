@@ -6,14 +6,13 @@
 using namespace cv;
 using namespace std;
 
-#define LOAD_VIDEO		0		// load all video frames or only the first
-#define SHOW_FEATURES	0		// show keypoints or not
-
+#define LOAD_VIDEO				0		// load all video frames or only the first
+#define SHOW_FEATURES			0		// show keypoints or not
+#define SHOW_MATCH_KEYPOINTS	0		// show matched keypoints or not
 
 //---------------------------------------------------------------------------functions
 
 std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading);
-vector<DMatch> autotune_matches(vector<DMatch> Matches, float min_dist, float ratio);
 
 
 //------------------------------------------------------------------------------------
@@ -33,7 +32,7 @@ int main(int argc, char* argv[]) {
 		myObject obj(img);
 		objects.push_back(obj);
 		if (SHOW_FEATURES) {
-			String index = to_string(i);
+			String index = to_string(i+1);
 			obj.showKeypoints("index" + index);
 		}
 	}
@@ -44,122 +43,102 @@ int main(int argc, char* argv[]) {
 	/* compute the matches */
 	objMatcher.computeMatches();
 
+	/* filter the matches according to the distance and select at least 200 features */
+	objMatcher.filterMatches(1.5, 200);
+
+	/* visualize the keypoints of object connected to the matched scene keypoints */
+	if (SHOW_MATCH_KEYPOINTS) {
+		std::vector<cv::Mat> img_matches = objMatcher.getImageMatched();
+		for (int i = 0; i < objects.size(); i++) {
+			resize(img_matches[i], img_matches[i], Size(img_matches[i].cols / 2, img_matches[i].rows / 2));
+			String index = to_string(i + 1);
+			imshow("Matched keypoints: image " + index, img_matches[i]);
+		}
+	}
+	
+	/* localize the objets and compute homography */
+	objMatcher.computeHomography();
+
+	objMatcher.findCorners();
+	objMatcher.computeProjection();
 	////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////// CLASSI FINO A QUI /////////////////////////////////////
 	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
+	//std::vector<std::vector<DMatch>> good_matches = objMatcher.good_matches;
 
-	/* select the matches according to the distance */
-	std::vector< std::vector<DMatch> > matches = objMatcher.matches;
-	std::vector<std::vector<DMatch>> good_matches;
-
-	for (int i = 0; i < objects.size(); i++) {
-
-		float ratio = 1.5;
-		std::vector<DMatch> temp_good_matches;
-
-		/* Find the minumun distance between matchpoints */
-		float dist;
-		dist = matches[i][0].distance;
-		for (int j = 0; j < matches[i].size(); j++) {
-			if (matches[i][j].distance < dist) dist = matches[i][j].distance;
-		}
-
-		/* Adapt the ratio in order to get at least 100 matches per object */
-		float temp_ratio = ratio;
-		while (temp_good_matches.size() < 100) {
-			temp_good_matches = autotune_matches(matches[i], dist, temp_ratio);
-			temp_ratio = 1.5 * temp_ratio;
-			if (temp_good_matches.size() == matches[i].size()) break;
-		}
-		good_matches.push_back(temp_good_matches);
-	}
-
-
-	/* vettore di image matches - disegna le righe dei 4 oggetti rispetto alla scena*/
-	std::vector<cv::Mat> img_matches;
-	for (int i = 0; i < objects.size(); i++) {
-		Mat temp_img_matches;
-		drawMatches(objects[i].image, objects[i].getKeypoints(), scene.image, scene.getKeypoints(), good_matches[i], temp_img_matches, objects[i].color,
-			Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-		img_matches.push_back(temp_img_matches);
-	}
-
-	/* PER VEDERE IL RISULTATO, SELEZIONARE IL NUEMRO DELL'OGGETTO CON num_obj */
-	//int num_obj = 0;
-	//resize(img_matches[num_obj], img_matches[num_obj], Size(img_matches[num_obj].cols / 2, img_matches[num_obj].rows / 2));
-	//imshow("img_matches", img_matches[num_obj]);
 
 	/* vectors for store the results */
-	std::vector<std::vector<Point2f>> obj_points;
-	std::vector<std::vector<Point2f>> scene_points;
-	std::vector<std::vector<Point2f>> obj_corners;
-	std::vector<std::vector<Point2f>> scene_corners;
-	std::vector<Mat> H;
-	std::vector< std::vector<float>> coord;// X min & max , Y min & max
+	//std::vector<std::vector<Point2f>> obj_points;
+	//std::vector<std::vector<Point2f>> scene_points;
+	//std::vector<std::vector<Point2f>> obj_corners;
+	std::vector<std::vector<Point2f>> scene_corners = objMatcher.getSceneCorners();
+	//std::vector<Mat> H;
+	//std::vector< std::vector<float>> coord;// X min & max , Y min & max
 
-	for (int i = 0; i < objects.size(); i++)
-	{
-		std::vector<float > temp_coord;
-		//for (int j = 0; j < 4; j++)
-		//coord[i].push_back(0.0f);
-		temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
-		temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
-		temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
-		temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
-		//coord[i][0] = objects[i].getKeypoints()[0].pt.x;
-		//coord[i][2] = objects[i].getKeypoints()[0].pt.y;
-		coord.push_back(temp_coord);
-	}
-	for (int j = 0; j < objects.size(); j++)
-	{
-		for (int i = 0; i < objects[j].getKeypoints().size(); i++)
-		{
+	//for (int i = 0; i < objects.size(); i++) {
+	//	std::vector<float > temp_coord;
+	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
+	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.x);
+	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
+	//	temp_coord.push_back(objects[i].getKeypoints()[0].pt.y);
+	//	coord.push_back(temp_coord);
+	//}
 
-			float x = objects[j].getKeypoints()[i].pt.x;
-			float y = objects[j].getKeypoints()[i].pt.y;
+	//for (int j = 0; j < objects.size(); j++) {
+	//	for (int i = 0; i < objects[j].getKeypoints().size(); i++) {
 
-			if (x < coord[j][0]) coord[j][0] = x;
-			else if (x > coord[j][1]) coord[j][1] = x;
+	//		float x = objects[j].getKeypoints()[i].pt.x;
+	//		float y = objects[j].getKeypoints()[i].pt.y;
 
-			if (y < coord[j][2]) coord[j][2] = y;
-			else if (y > coord[j][3]) coord[j][3] = y;
+	//		if (x < coord[j][0]) coord[j][0] = x;
+	//		else if (x > coord[j][1]) coord[j][1] = x;
 
-			//cout << "keypoints x coordinate:     " << x << std::endl;
-			//cout << "keypoints y coordinate:     " << y << std::endl;
-		}
-	}
+	//		if (y < coord[j][2]) coord[j][2] = y;
+	//		else if (y > coord[j][3]) coord[j][3] = y;
+	//	}
+	//}
+
 	/* localize object - compute homography - get the corners from the object to be detected */
 	for (int i = 0; i < objects.size(); i++) {
 
-		/* temp elementes - will be stored in the outside vectors */
-		std::vector<Point2f> temp_obj_points;
-		std::vector<Point2f> temp_scene_points;
-		std::vector<Point2f> temp_obj_corners(4);
-		std::vector<Point2f> temp_scene_corners(4);
+		///* temp elementes - will be stored in the outside vectors */
+		//std::vector<Point2f> temp_obj_points;
+		//std::vector<Point2f> temp_scene_points;
+		//std::vector<Point2f> temp_obj_corners(4);
+		//std::vector<Point2f> temp_scene_corners = objMatcher.getSceneCorners();
 
-		/* Localize the object */
-		for (size_t j = 0; j < good_matches[i].size(); j++) {
-			temp_obj_points.push_back(objects[i].getKeypoints()[good_matches[i][j].queryIdx].pt);
-			temp_scene_points.push_back(scene.getKeypoints()[good_matches[i][j].trainIdx].pt);
-		}
+		///* Localize the object */
+		//for (size_t j = 0; j < good_matches[i].size(); j++) {
+		//	temp_obj_points.push_back(objects[i].getKeypoints()[good_matches[i][j].queryIdx].pt);
+		//	temp_scene_points.push_back(scene.getKeypoints()[good_matches[i][j].trainIdx].pt);
+		//}
 
-		/* compute homography */
-		Mat temp_H = findHomography(temp_obj_points, temp_scene_points, RANSAC);
 
-		/* Get the corners from the object to be detected */
-		temp_obj_corners[0] = Point2f(coord[i][0], coord[i][2]);
-		temp_obj_corners[1] = Point2f(coord[i][0], coord[i][3]);
-		temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
-		temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
+		//
+		//
 
-		perspectiveTransform(temp_obj_corners, temp_scene_corners, temp_H);
+		///* compute homography */
+		//Mat temp_H = findHomography(temp_obj_points, temp_scene_points, RANSAC);
 
-		/* store the "temp" elements in the outside vectors */
-		obj_points.push_back(temp_obj_corners);
-		scene_points.push_back(temp_scene_corners);
-		obj_corners.push_back(temp_obj_corners);
-		scene_corners.push_back(temp_scene_corners);
-		H.push_back(temp_H);
+		///* Get the corners from the object to be detected */
+		//temp_obj_corners[0] = Point2f(coord[i][0], coord[i][2]);
+		//temp_obj_corners[1] = Point2f(coord[i][0], coord[i][3]);
+		//temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
+		//temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
+
+		//temp_obj_corners[0] = Point2f(0, 0);
+		//temp_obj_corners[1] = Point2f((float)objects[i].image.cols, 0);
+		//temp_obj_corners[2] = Point2f((float)objects[i].image.cols, (float)objects[i].image.rows);
+		//temp_obj_corners[3] = Point2f(0, (float)objects[i].image.rows);
+
+		//perspectiveTransform(objMatcher.obj_corners[i], temp_scene_corners, objMatcher.H[i]);
+
+		///* store the "temp" elements in the outside vectors */
+		//obj_points.push_back(temp_obj_corners);
+		//scene_points.push_back(temp_scene_corners);
+		//obj_corners.push_back(temp_obj_corners);
+		//scene_corners.push_back(temp_scene_corners);
+		//H.push_back(temp_H);
 	}
 
 
@@ -208,12 +187,3 @@ std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading = LOAD_VIDEO)
 	
 	return frames_to_load;
 }
-/* ------------------------------------------------------------------------------------------*/
-vector<DMatch> autotune_matches(vector<DMatch> Matches, float min_dist, float ratio) {
-	vector<DMatch> match;
-	for (int j = 0; j < int(Matches.size()); j++) {
-		if (Matches[j].distance < min_dist * ratio) match.push_back(Matches[j]);
-	}
-	return match;
-}
-/* ------------------------------------------------------------------------------------------*/

@@ -67,14 +67,38 @@ public:
 	/* compute the match between objects and scene image */
 	void computeMatches();
 
+	/* select the matches according to the distance */ 
+	void filterMatches(float ratio, int features_min);
 
-	std::vector< std::vector<DMatch> > matches;
+	/* return a vector of images where each keypoints of object are connected to the matched scene keypoints */
+	std::vector<cv::Mat> getImageMatched();
+
+	/* localize object and  compute homography  */
+	void computeHomography();
+
+	/* find the object images corners to draw the rettangle */
+	void findCorners();
+
+	/* compute the projection from the object images to the scene image*/
+	void computeProjection();
+
+	/* return the scene points */
+	std::vector < std::vector<Point2f> >getScenePoints();
+	/* return the corners points */
+	std::vector<std::vector<Point2f>> getSceneCorners();
+
+	
 private:
 
-	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, true);
-	
 	std::vector<myObject> obj;
 	myObject scene;
+	Ptr<BFMatcher> matcher = BFMatcher::create(NORM_L2, true);
+	std::vector< std::vector<DMatch> > matches;
+	std::vector<std::vector<DMatch>> good_matches;
+	std::vector<std::vector<Point2f>> obj_points;
+	std::vector<std::vector<Point2f>> scene_points;
+	std::vector<std::vector<Point2f>> obj_corners;
+	std::vector<std::vector<Point2f>> scene_corners;
+	std::vector<Mat> H;
 	
-
 };
