@@ -169,6 +169,11 @@ void myMatcher::findCorners() {
 		temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
 		temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
 
+		temp_obj_corners[0] = Point2f(0, 0);
+		temp_obj_corners[1] = Point2f((float)obj[i].image.cols, 0);
+		temp_obj_corners[2] = Point2f((float)obj[i].image.cols, (float)obj[i].image.rows);
+		temp_obj_corners[3] = Point2f(0, (float)obj[i].image.rows);
+
 		obj_corners.push_back(temp_obj_corners);
 	}
 }

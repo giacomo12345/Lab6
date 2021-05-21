@@ -15,7 +15,7 @@ using namespace std;
 
 std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading);
 void drawRettangles(Mat& image, std::vector<std::vector<Point2f>> corners, std::vector<myObject> obj);
-
+void drawRettangle(Mat& image, std::vector<Point2f>corners, myObject obj);
 ////////////////////////////////////////////////////////////////////////////////////////
 Point2f point;
 bool addRemovePt = false;
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
 	
 	objMatcher.computeCenterPoints();
 
-	/* get the distance from the center point and each keypoint and discard if is bigger than max distance */
+	/* discard the outliers */
 	std::vector<std::vector<Point2f>> good_scene_points;
 	for (int i = 0; i < objects.size(); i++) {
 		
@@ -103,169 +103,92 @@ int main(int argc, char* argv[]) {
 			float distance_module = sqrt(distance.x*distance.x + distance.y*distance.y);
 			if (distance_module < objMatcher.max_distance[i]) good_scene_points_temp.push_back(scene_points[i][j]);
 		}
-
 		good_scene_points.push_back(good_scene_points_temp);
-
-		cout << "oushato" << i << endl;
-
-		
 	}
+
+	/* show the keypoints without outliers */
 	for (int i = 0; i < objects.size(); i++) {
 		for (int j = 0; j < good_scene_points[i].size(); j++) {
-
 			circle(detected_objects, good_scene_points[i][j], 5, objects[i].color, -1);
 		}
 	}
+
 	imshow("Object detection", detected_objects);
 
-
-	
-	const int MAX_COUNT = 500;
-	double qlevel = 0.01;
-	double minDist = 10;
-	bool needToInit = false;
-	bool nightMode = false;
-
-	
-
-
-	VideoCapture cap1;
-	TermCriteria termcrit(TermCriteria::COUNT | TermCriteria::EPS, 20, 0.03);
-	Size subPixWinSize(10, 10), winSize(31, 31);
-
-
-	Mat gray, prevGray, image, frame;
-	vector<Point2f> points[2];
-
-
-
-
-
-
-
-	namedWindow("LK Demo", 1);
-	setMouseCallback("LK Demo", onMouse, 0);
-
+	/* initialize the frame and the geay frame */
 	Mat old_frame, old_gray;
-    vector<Point2f> p0, p1;
-	p0 = scene_points[0]; //objMatcher.center_points; //scene_points[0];
- 	old_frame = scene.image.clone();
+	old_frame = scene.image.clone();
 	cvtColor(old_frame, old_gray, COLOR_BGR2GRAY);
-	Mat mask = Mat::zeros(old_frame.size(), old_frame.type());
+
+	/* one vector of points for each object */
+	vector<vector<Point2f>> p0;
+	for (int i = 0; i < objects.size(); i++) p0.push_back(good_scene_points[i]);
+
+
+
+	vector<Mat> mask ;
+	for (int i = 0; i < objects.size(); i++) mask.push_back(Mat::zeros(old_frame.size(), old_frame.type()));
+	for (int i = 0; i < objects.size(); i++) drawRettangle(mask[i], scene_corners[i], objects[i]);
 
 	cv::VideoCapture cap("video.mov");
-	if (cap.isOpened())
-	{
-		for (;;)
-		{
+	TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 20, 0.03);
+	
+	if (cap.isOpened()) {
+		for (;;) {
+
 			Mat frame, frame_gray;
+			Mat mask_new=  Mat::zeros(old_frame.size(), old_frame.type());
 			cap >> frame;
 			if (frame.empty())
 				break;
 			cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
+			
 
-	
-			vector<uchar> status;
-			vector<float> err;
-			
-			TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 20, 0.03);
-			calcOpticalFlowPyrLK(old_gray, frame_gray, p0, p1, status, err, Size(31, 31), 3, criteria ,0, 0.001);
-			
-			vector<Point2f> good_new;
-			for (uint i = 0; i < p0.size(); i++)
-			{
-				// Select good points
-				if (status[i] == 1) {
-					good_new.push_back(p1[i]);
-					// draw the tracks
-					line(mask, p1[i], p0[i], objects[0].color, 2);
-					circle(frame, p1[i], 5, objects[0].color, -1);
+			for (int i = 0; i < objects.size(); i++) {
+
+				
+				vector<Point2f>  p1;
+				vector<uchar> status;
+				vector<float> err;
+				calcOpticalFlowPyrLK(old_gray, frame_gray, p0[i], p1, status, err, Size(31, 31), 3, criteria, 0, 0.001);
+
+				/* select good points */
+				vector<Point2f> good_new;
+				vector<Point2f> good_old;
+				for (uint j = 0; j < p0[i].size(); j++) {
+					if (status[j] == 1) {
+						good_new.push_back(p1[j]);
+						good_old.push_back(p0[i][j]);
+						//circle(frame, p1[j], 5, objects[i].color, -1);
+					}
 				}
+				//cout << "old size   " << good_old.size() << "  new size  " << good_new.size() <<"-------------------------------------"<< endl;
+				//vector<Mat> 
+				cv::Mat affineMatrix = cv::estimateAffine2D(good_old, good_new, noArray());
+
+				
+				warpAffine(mask[i], mask_new, affineMatrix, mask[i].size());
+					
+				frame += mask_new;
+				
+			
+				/* update */
+				p0[i] = good_new;
+				mask[i] = mask_new.clone();
 			}
-			Mat img;
-			add(frame, mask, img);
-			imshow("Frame", img);
+			
+			//Mat img;
+			//add(frame, mask_new, img);
+			frame += mask_new;
+			imshow("Frame", frame);
 			int keyboard = waitKey(1);
 			if (keyboard == 'q' || keyboard == 27)
 				break;
-			// Now update the previous frame and previous points
+			/* update of the previous frame */
 			old_gray = frame_gray.clone();
-			p0 = good_new;
-		}
-
-
-
-
-
-
-		
-
-
-
-		/*
-			if (needToInit)
-			{
-				// automatic initialization
-				goodFeaturesToTrack(gray, points[1], MAX_COUNT, 0.01, 10, Mat(), 3, 3, 0, 0.04);
-				cornerSubPix(gray, points[1], subPixWinSize, Size(-1, -1), termcrit);
-				addRemovePt = false;
-			}
-			else if (!points[0].empty())
-			{
-				vector<uchar> status;
-				vector<float> err;
-
-				if (prevGray.empty()) gray.copyTo(prevGray);
-
-				calcOpticalFlowPyrLK(prevGray, gray, points[0], points[1], status, err, winSize,
-					3, termcrit, 0, 0.001);
-				size_t i, k;
-				for (i = k = 0; i < points[1].size(); i++)
-				{
-					if (addRemovePt)
-					{
-						if (norm(point - points[1][i]) <= 5)
-						{
-							addRemovePt = false;
-							continue;
-						}
-					}
-					if (!status[i]) continue;
-					points[1][k++] = points[1][i];
-					circle(image, points[1][i], 3, Scalar(0, 255, 0), -1, 8);
-				}
-				points[1].resize(k);
-			}
-
-			if (addRemovePt && points[1].size() < (size_t)MAX_COUNT)
-			{
-				vector<Point2f> tmp;
-				tmp.push_back(point);
-				cornerSubPix(gray, tmp, winSize, Size(-1, -1), termcrit);
-				points[1].push_back(tmp[0]);
-				addRemovePt = false;
-			}
-			needToInit = false;
-			imshow("LK Demo", image);
-			char c = (char)waitKey(10);
-			if (c == 27) break;
-			switch (c)
-			{
-			case 'r':
-				needToInit = true;
-				break;
-			case 'c':
-				points[0].clear();
-				points[1].clear();
-				break;
-			case 'n':
-				nightMode = !nightMode;
-				break;
-			}
-			std::swap(points[1], points[0]);
-			cv::swap(prevGray, gray);
-		}
-		*/
+			
+			
+		}		
 	}
 	else std::cout << "error 404 video not found" << std::endl;
 
@@ -308,4 +231,11 @@ void drawRettangles(Mat& image, std::vector<std::vector<Point2f>> corners, std::
 		for (int j = 0; j < 3; j++) line(image, corners[i][j], corners[i][j + 1], obj[i].color, 4);
 		line(image, corners[i][3], corners[i][0] ,obj[i].color, 4);
 	}
+}
+
+void drawRettangle(Mat& image, std::vector<Point2f>corners, myObject obj) {
+
+		for (int j = 0; j < 3; j++) line(image, corners[j], corners[j + 1], Scalar(255,0,0), 10);
+		line(image, corners[3], corners[0], Scalar(255, 0, 0), 10);
+	
 }
