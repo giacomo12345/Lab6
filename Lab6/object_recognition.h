@@ -89,7 +89,7 @@ public:
 	std::vector<std::vector<Point2f>> getSceneCorners();
 
 	/* compute the center point of the object in the scene and the max distance from this point and other points of the image*/
-	void computeCenterPoints();
+	void computeCenterAndDistance();
 
 	std::vector<Point2f> center_points;
 	std::vector<float> max_distance;
@@ -106,6 +106,7 @@ private:
 	std::vector<std::vector<Point2f>> scene_points;
 	std::vector<std::vector<Point2f>> obj_corners;
 	std::vector<std::vector<Point2f>> scene_corners;
+	std::vector<std::vector<Point2f>> good_scene_points;
 	std::vector<Mat> H;
 	
 };

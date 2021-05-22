@@ -169,10 +169,7 @@ void myMatcher::findCorners() {
 		temp_obj_corners[2] = Point2f(coord[i][1], coord[i][3]);
 		temp_obj_corners[3] = Point2f(coord[i][1], coord[i][2]);
 
-		temp_obj_corners[0] = Point2f(0, 0);
-		temp_obj_corners[1] = Point2f((float)obj[i].image.cols, 0);
-		temp_obj_corners[2] = Point2f((float)obj[i].image.cols, (float)obj[i].image.rows);
-		temp_obj_corners[3] = Point2f(0, (float)obj[i].image.rows);
+		
 
 		obj_corners.push_back(temp_obj_corners);
 	}
@@ -198,7 +195,7 @@ std::vector<std::vector<Point2f>> myMatcher::getSceneCorners() {
 }
 
 /* compute the center point of the object in the scene and the max distance from this point and other points of the image*/
-void  myMatcher::computeCenterPoints() {
+void  myMatcher::computeCenterAndDistance() {
 
 	for(int i = 0 ; i < obj.size() ; i++) {
 
@@ -206,11 +203,7 @@ void  myMatcher::computeCenterPoints() {
 		std::vector<Point2f> points_obj;
 		std::vector<Point2f> points_scene;
 
-		Point2f temp_point_obj;
-		Point2f temp_point_scene;
-		temp_point_obj.y = obj[i].image.rows/2;
-		temp_point_obj.x = obj[i].image.cols/2;
-		points_obj.push_back(temp_point_obj);
+		points_obj.push_back(Point2f(obj[i].image.cols / 2, obj[i].image.rows / 2));
 		points_obj.push_back(Point2f(0,0));
 
 		perspectiveTransform(points_obj, points_scene, H[i]);

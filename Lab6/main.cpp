@@ -7,7 +7,7 @@
 using namespace cv;
 using namespace std;
 
-#define LOAD_VIDEO				0		// load all video frames or only the first
+#define LOAD_VIDEO				1		// load all video frames or only the first
 #define SHOW_FEATURES			0		// show keypoints or not
 #define SHOW_MATCH_KEYPOINTS	0		// show matched keypoints or not
 
@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
 	/* compute the projection of the object image corners to the scene image */
 	objMatcher.computeProjection();
 	
+	//////////////////////////////////////////////////////////////////////////////////////////CLASSI DA QUI IN POI
 	/* store the corners and the points of the scene */
 	std::vector<std::vector<Point2f>> scene_points = objMatcher.getScenePoints();
 	std::vector<std::vector<Point2f>> scene_corners = objMatcher.getSceneCorners();
@@ -90,23 +91,31 @@ int main(int argc, char* argv[]) {
 	drawRettangles(detected_objects, scene_corners, objects);
 	namedWindow("Object detection", WINDOW_AUTOSIZE);
 	imshow("Object detection", detected_objects);
-	
-	objMatcher.computeCenterPoints();
 
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* discard the outliers */
+	objMatcher.computeCenterAndDistance();
+
 	std::vector<std::vector<Point2f>> good_scene_points;
 	for (int i = 0; i < objects.size(); i++) {
 		
 		std::vector<Point2f> good_scene_points_temp;
 		for (int j = 0; j < scene_points[i].size(); j++) {
+
 			Point2f distance = objMatcher.center_points[i] - scene_points[i][j];
 			float distance_module = sqrt(distance.x*distance.x + distance.y*distance.y);
 			if (distance_module < objMatcher.max_distance[i]) good_scene_points_temp.push_back(scene_points[i][j]);
 		}
 		good_scene_points.push_back(good_scene_points_temp);
 	}
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/* show the keypoints without outliers */
+
+
+
+	/* show the keypoints without outliers */						
+	//std::vector<std::vector<Point2f>> good_scene_points = myMatcher.getGoodScenePoints();
 	for (int i = 0; i < objects.size(); i++) {
 		for (int j = 0; j < good_scene_points[i].size(); j++) {
 			circle(detected_objects, good_scene_points[i][j], 5, objects[i].color, -1);
@@ -114,6 +123,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	imshow("Object detection", detected_objects);
+
 
 	/* initialize the frame and the geay frame */
 	Mat old_frame, old_gray;
@@ -124,73 +134,56 @@ int main(int argc, char* argv[]) {
 	vector<vector<Point2f>> p0;
 	for (int i = 0; i < objects.size(); i++) p0.push_back(good_scene_points[i]);
 
-
-
-	vector<Mat> mask ;
-	for (int i = 0; i < objects.size(); i++) mask.push_back(Mat::zeros(old_frame.size(), old_frame.type()));
-	for (int i = 0; i < objects.size(); i++) drawRettangle(mask[i], scene_corners[i], objects[i]);
-
 	cv::VideoCapture cap("video.mov");
 	TermCriteria criteria = TermCriteria((TermCriteria::COUNT) + (TermCriteria::EPS), 20, 0.03);
 	
-	if (cap.isOpened()) {
-		for (;;) {
+	
+	for (int frm = 0; frm < frames.size(); frm++) {
+		Mat frame, frame_gray;
+		frame = frames[frm];
+		cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 
-			Mat frame, frame_gray;
-			Mat mask_new=  Mat::zeros(old_frame.size(), old_frame.type());
-			cap >> frame;
-			if (frame.empty())
-				break;
-			cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
-			
+		for (int i = 0; i < objects.size(); i++) {
 
-			for (int i = 0; i < objects.size(); i++) {
+			vector<Point2f>  p1;
+			vector<uchar> status;
+			vector<float> err;
+			calcOpticalFlowPyrLK(old_gray, frame_gray, p0[i], p1, status, err, Size(31, 31), 3, criteria, 0, 0.001);
 
-				
-				vector<Point2f>  p1;
-				vector<uchar> status;
-				vector<float> err;
-				calcOpticalFlowPyrLK(old_gray, frame_gray, p0[i], p1, status, err, Size(31, 31), 3, criteria, 0, 0.001);
-
-				/* select good points */
-				vector<Point2f> good_new;
-				vector<Point2f> good_old;
-				for (uint j = 0; j < p0[i].size(); j++) {
-					if (status[j] == 1) {
-						good_new.push_back(p1[j]);
-						good_old.push_back(p0[i][j]);
-						//circle(frame, p1[j], 5, objects[i].color, -1);
-					}
+			/* select good points */
+			vector<Point2f> good_new;
+			vector<Point2f> good_old;
+			for (uint j = 0; j < p0[i].size(); j++) {
+				if (status[j] == 1) {
+					good_new.push_back(p1[j]);
+					good_old.push_back(p0[i][j]);
 				}
-				//cout << "old size   " << good_old.size() << "  new size  " << good_new.size() <<"-------------------------------------"<< endl;
-				//vector<Mat> 
-				cv::Mat affineMatrix = cv::estimateAffine2D(good_old, good_new, noArray());
-
-				
-				warpAffine(mask[i], mask_new, affineMatrix, mask[i].size());
-					
-				frame += mask_new;
-				
-			
-				/* update */
-				p0[i] = good_new;
-				mask[i] = mask_new.clone();
 			}
+
+			cv::Mat_<float> affineMatrix = cv::estimateAffine2D(good_old, good_new, noArray());
+
+			for (int corner = 0; corner < scene_corners[i].size(); corner++) {
+				Mat_<float> pm(3, 1);
+				pm << scene_corners[i][corner].x, scene_corners[i][corner].y, 1.0;
+				Mat_<float> pr = affineMatrix * pm;
+				Point2f pt(pr(0), pr(1));
+				scene_corners[i][corner] = pt;
+			}
+
+			drawRettangle(frame, scene_corners[i], objects[i]);
 			
-			//Mat img;
-			//add(frame, mask_new, img);
-			frame += mask_new;
-			imshow("Frame", frame);
-			int keyboard = waitKey(1);
-			if (keyboard == 'q' || keyboard == 27)
-				break;
-			/* update of the previous frame */
-			old_gray = frame_gray.clone();
-			
-			
-		}		
+			/* update */
+			p0[i] = good_new;
+		}
+
+
+		imshow("Frame", frame);
+		waitKey(1);
+		/* update of the previous frame */
+		old_gray = frame_gray.clone();
+	
 	}
-	else std::cout << "error 404 video not found" << std::endl;
+	
 
 
 	cout << "END" << std::endl;
@@ -210,6 +203,7 @@ std::vector<cv::Mat> loadVideo(String videoName, int toogleLoading = LOAD_VIDEO)
 		for (;;) {
 			cv::Mat frame;
 			cap >> frame;
+			
 			if (!cap.read(frame)) break;
 			frames_to_load.push_back(frame);
 			if (loader % 110 == 0) cout << ".";
@@ -235,7 +229,7 @@ void drawRettangles(Mat& image, std::vector<std::vector<Point2f>> corners, std::
 
 void drawRettangle(Mat& image, std::vector<Point2f>corners, myObject obj) {
 
-		for (int j = 0; j < 3; j++) line(image, corners[j], corners[j + 1], Scalar(255,0,0), 10);
-		line(image, corners[3], corners[0], Scalar(255, 0, 0), 10);
+		for (int j = 0; j < 3; j++) line(image, corners[j], corners[j + 1],obj.color, 3);
+		line(image, corners[3], corners[0], obj.color, 3);
 	
 }
